@@ -1,0 +1,237 @@
+.caster-me{
+    animation: popup ease-in-out 1s forwards;
+}
+.caster-you{
+    animation: popdown ease-in-out 1s forwards;
+}
+@keyframes popup {
+    50%{
+        transform: translateY(-300%);
+    }
+    100%{
+        transform: translateY(0);
+    }
+}
+@keyframes popdown {
+    50%{
+        transform: translateY(300%);
+    }
+    100%{
+        transform: translateY(0);
+    }
+}
+.cut-you .icon,
+.cut-me .icon,
+.stab-you .icon,
+.stab-me .icon,
+.melee-punch-you .icon,
+.melee-punch-me .icon,
+.range-punch-you .icon,
+.range-punch-me .icon,
+.shot-you .icon,
+.shot-me .icon{
+    animation: damaged1 ease-in-out .5s .85s forwards;
+}
+.blast-you .icon,
+.blast-me .icon{
+    animation: damaged2 ease-in-out .7s .85s forwards;
+}
+@keyframes damaged1 {
+    50%{
+        transform: scale(.8);
+    }
+    100%{
+        transform: scale(1);
+    }
+}
+@keyframes damaged2 {
+    10%{
+        transform: translateX(-10%);
+    }
+    20%{
+        transform: translateX(10%);
+    }
+    30%{
+        transform: translateX(-5%);
+    }
+    40%{
+        transform: translateX(5%);
+    }
+    50%{
+        transform: translateX(-3%);
+    }
+    60%{
+        transform: translateX(3%);
+    }
+    70%{
+        transform: translateX(2%);
+    }
+    80%{
+        transform: translateX(-2%);
+    }
+    90%{
+        transform: translateX(1%);
+    }
+    100%{
+        transform: translateX(0);
+    }
+}
+/* 割锯 */
+.cut-me::after,
+.cut-you::after{
+    content: '';
+    position: absolute;
+    opacity: 0;
+    top: 40%;
+    left: 0;
+    background-color: grey;
+    box-shadow: 0 0 20px 8px red;
+    height: 60px;
+    width: 60px;
+    border-radius: 30px;
+    z-index: 200;
+    transform: rotateZ(37deg) rotateX(136deg);
+    animation: cut ease-out .5s .7s forwards;
+}
+@keyframes cut {
+    20%{
+        transform: scale(3) rotateZ(37deg) rotateX(76deg);
+        opacity: 1;
+    }
+    100%{
+        transform: scale(1) rotateZ(37deg) rotateX(136deg);
+        opacity: 0;
+    }
+}
+/* 突刺 */
+.stab-me::after,
+.stab-you::after,
+.shot-me::after,
+.shot-you::after{
+    content: '';
+    position: absolute;
+    opacity: 0;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    background-color: grey;
+    height: 160px;
+    width: 2px;
+    z-index: 200;
+    box-shadow: 0 0 15px 6px red;
+    animation: stab ease-in .3s .7s forwards;
+}
+.stab-me::after,
+.shot-me::after{
+    top: -500%;
+    animation: stab-me ease-in .3s .7s forwards;
+}
+.stab-you::after,
+.shot-you::after{
+    top: 500%;
+    animation: stab-you ease-in .3s .7s forwards;
+}
+@keyframes stab-me {
+    10%{
+        top: -50%;
+        opacity: 1;
+    }
+    100%{
+        top: 100%;
+        opacity: .25;
+        transform: scaleX(0);
+    }
+}
+@keyframes stab-you {
+    10%{
+        top: 50%;
+        opacity: 1;
+    }
+    100%{
+        top: -100%;
+        opacity: .25;
+        transform: scaleX(0);
+    }
+}
+/* 钝击 */
+.melee-punch-you::after,
+.melee-punch-me::after,
+.range-punch-you::after,
+.range-punch-me::after{
+    content: '';
+    position: absolute;
+    opacity: 0;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: auto;
+    background-color: red;
+    height: 66px;
+    width: 66px;
+    border-radius: 30px;
+    z-index: 200;
+    opacity: 0;
+}
+.melee-punch-you::after,
+.range-punch-you::after{
+    transform: translateY(400%) scale(1.5);
+    animation: punch-you ease-out .3s .7s forwards;
+}
+.melee-punch-me::after,
+.range-punch-me::after{
+    transform: translateY(-400%) scale(1.5);
+    animation: punch-me ease-out .3s .7s forwards;
+}
+@keyframes punch-you {
+    50%{
+        transform: translateY(50%);
+        opacity: .5;
+    }
+    100%{
+        transform: translateY(-55%) scale(2.6) rotateX(85deg);
+        opacity: 0;
+    }
+}
+@keyframes punch-me {
+    50%{
+        transform: translateY(-50%);
+        opacity: .5;
+    }
+    100%{
+        transform: translateY(55%) scale(2.6) rotateX(85deg);
+        opacity: 0;
+    }
+}
+
+/* 爆炸 */
+.blast-you::after,
+.blast-me::after{
+    content: '';
+    position: absolute;
+    opacity: 0;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: auto;
+    background-color: red;
+    box-shadow: 0 0 20px 8px DarkOrange;
+    height: 60px;
+    width: 60px;
+    border-radius: 30px;
+    z-index: 200;
+    opacity: 0;
+    transform: scale(0);
+    animation: blast ease-in .3s .7s forwards;
+}
+@keyframes blast {
+    50%{
+        transform: scale(1.5);
+        opacity: 1;
+    }
+    100%{
+        transform: scale(3);
+        opacity: 0;
+    }
+}
