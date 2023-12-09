@@ -1,26 +1,365 @@
 <template>
     <div class="main">
-        h
+        <div class="map" v-if="data.map&&data.map.length==(WI*HI+WI)">
+            <a class="btn cell" :class="{'cell-sel':index==curCellIndex,'cell-red':index<36,'cell-blue':index>=45}" :style="`width:${100/WI}%;height:${100/HI}%`" @click="onClickCell(index)" v-for="(number,index) in WI*HI">
+                <span class="item">
+                    <span class="flag" v-if="data.map[index].type==1">旗</span>
+                    <span class="block" v-if="data.map[index].type==3"></span>
+                </span>
+                <span class="item">
+                    <span class="building" :class="`${data.map[index].type==3?'block-building':''}`" v-if="data.map[index].name">{{data.map[index].name}}</span>
+                </span>
+                <span class="item">
+                    <span class="card" :class="`card-${data.map[index].card}`" v-if="data.map[index].type==2&&data.map[index].show">{{CNLIST[data.map[index].card-1]}}</span>
+                    <span class="card" v-if="data.map[index].type==2&&!data.map[index].show">{{(manager&&index==curCellIndex)?CNLIST[data.map[index].card-1]:'?'}}</span>
+                </span>
+                <span class="role-wrap">
+                    <span class="role" :class="`role-color-${role}`" v-for="(role,index) in data.map[index].roles">{{RNLIST[role-1]}}</span>
+                </span>
+                <span v-if="manager">
+                    <span class="lab lab-t" v-if="index<WI">{{index+1}}</span>
+                    <span class="lab lab-l" v-if="index%HI==0">{{LBLIST[Math.floor(index/HI)]}}</span>
+                    <span class="lab lab-b" v-if="index<WI*HI&&index>=WI*(HI-1)">{{index-WI*(HI-1)+1}}</span>
+                    <span class="lab lab-r" v-if="index%HI==(WI-1)">{{LBLIST[Math.floor(index/HI)]}}</span>
+                </span>
+            </a>
+        </div>
+        <div class="death" v-if="data.map&&data.map.length==(WI*HI+WI)">
+            <a class="btn cell" :class="{'cell-sel':index==curCellIndex}" :style="`width:${100/WI}%;height:100%`" @click="onClickCell(index+WI*HI)" v-for="(number,index) in WI">
+                <span class="item">
+                    复活{{WI-number+1}}
+                </span>
+                <span class="role-wrap">
+                    <span class="role" :class="`role-color-${role}`" v-for="(role,index) in data.map[index+WI*HI].roles">{{RNLIST[role-1]}}</span>
+                </span>
+            </a>
+        </div>
+        <div class="round" v-if="!manager">回合：{{data.round}}</div>
+        <div class="coord" v-if="!manager&&curCellIndex>=0&&curCellIndex<WI*HI">坐标：{{getCellCoords()}}</div>
+        <a class="btn btn-asyn" @click="onClickLoad()" v-if="!manager">同步</a>
+        <a class="btn btn-login" @click="showLoginPop=true" v-if="!manager">主持人登录</a>
+        <div class="option" v-if="manager">
+            <div class="row row-title">
+                <div>
+                    管理员：{{manager}}
+                    <a class="btn" @click="onClickLogout()">注销</a>
+                    <a class="btn" @click="onClickClear()">清场</a>
+                </div>
+                <div>
+                    回合：{{data.round}}
+                    <a class="btn" @click="onClickRoundCount(1)">+</a>
+                    <a class="btn" @click="onClickRoundCount(-1)">-</a>
+                    <a class="btn" @click="onClickRoundCount(0)">归0</a>
+                </div>
+            </div>
+            <div class="row row-roles" v-if="curCellIndex>=0">
+                <div class="row-name">移动至{{getCellCoords()}}：</div>
+                <a class="btn btn-move" :class="`btn-move-${number}`" @click="onClickMove(number)" v-for="(number,index) in 6">{{RNLIST[index]}}</a>
+                <br/>
+                <a class="btn btn-move" @click="onClickMove(7)">敌</a>
+            </div>
+            <div class="row" v-if="curCellIndex>=0">
+                <div>
+                    <a class="btn" @click="onClickSetType(1)">设为战旗</a>
+                    <a class="btn" @click="onClickSetType(3)">设为电墙</a>
+                </div>
+                <div>
+                    <a class="btn" @click="onClickSetType(2,1)">设为攻牌</a>
+                    <a class="btn" @click="onClickSetType(2,2)">设为闪牌</a>
+                    <a class="btn" @click="onClickSetType(2,3)">设为蓄牌</a>
+                    <a class="btn" @click="onClickSetShow()">{{data.map[curCellIndex].show?'盖住':'翻开'}}</a>
+                </div>
+            </div>
+            <div class="row" v-if="curCellIndex>=0">
+                <div>
+                    <input class="inp" v-model="cellname" placeholder="设置方格的文字" :disabled="false"/>
+                    <a class="btn" @click="onClickSetName()">确定</a>
+                </div>
+                <div>
+                    <a class="btn" @click="onClickSetType(0)">清空此方格</a>
+                </div>
+            </div>
+            <a class="btn btn-asyn" @click="onClickSave()">同步</a>
+            <!-- <div class="option-cell" v-if="curCellIndex>=0">
+                <div class="crow" v-if="curCellIndex>=0">选中的格子坐标：</div>
+                <div class="crow">
+                    移动至此：<br/>
+                    <a class="btn btn-move" :class="`btn-move-${number}`" @click="onClickMove(number)" v-for="(number,index) in 6">{{RNLIST[index]}}</a>
+                    <br/>
+                    <a class="btn btn-move" @click="onClickMove(7)">敌</a>
+                </div>
+                <div class="brow"></div>
+                <div class="crow">
+                    <a class="btn" @click="onClickSetType(1)">设为战旗</a>
+                    <a class="btn" @click="onClickSetType(3)">设为电墙</a>
+                </div>
+                <div class="brow"></div>
+                <div class="crow">
+                    <a class="btn" @click="onClickSetType(2,1)">设为攻牌</a>
+                    <a class="btn" @click="onClickSetType(2,2)">设为闪牌</a>
+                    <a class="btn" @click="onClickSetType(2,3)">设为蓄牌</a>
+                    <br/>
+                    <a class="btn" @click="onClickSetShow()">{{data.map[curCellIndex].show?'盖住':'翻开'}}</a>
+                </div>
+                <div class="brow"></div>
+                <div class="crow">
+                    <nut-textinput class="inp" v-model="cellname" placeholder="设置方格的文字" :disabled="false"/>
+                    <a class="btn" @click="onClickSetName()">确定</a>
+                </div>
+                <div class="brow"></div>
+                <div class="crow">
+                    <a class="btn" @click="onClickSetType(0)">清空此方格</a>
+                </div>
+            </div> -->
+            <!-- <div class="row-wrap-bt">
+                <div class="row"></div>
+                <a class="btn row" :class="cursorMode==1?'btn-sel':''" @click="onClickSetCursor(1)">战旗画笔</a>
+                <a class="btn row" :class="cursorMode==3?'btn-sel':''" @click="onClickSetCursor(3)">电墙画笔</a>
+                <a class="btn row" :class="cursorMode==4?'btn-sel':''" @click="onClickSetCursor(4)">擦除画笔</a>
+                <div class="row"></div>
+                <a class="btn row" @click="onClickClear()">清场</a>
+                <div class="row"></div>
+                <a class="btn btn-asyn row" @click="onClickSave()">同步</a>
+            </div> -->
+        </div>
+
+        <nut-popup v-model="showLoginPop">
+            <nut-textinput class="inp" v-model="username" @keyup="onUsernameChange" placeholder="主持人名字" :disabled="false"/>
+        </nut-popup>
     </div>
 </template>
 
 <script>
-import { query, r, bulbsort, getParentNode,  } from '../tools/utils';
+import { query, r, bulbsort, getParentNode, getQueryVariable, arrContains, } from '../tools/utils';
 import { DEBUG, CONFIG, CACHE, } from '../config/config';
+const UN = 'fish';
+const WI = 9;
+const HI = 9;
+const RNLIST = ['芙','坎','凡','道','雨','续','敌',];
+const CNLIST = ['攻','闪','蓄',];
+const LBLIST = ['A','B','C','D','E','F','G','H','I','J'];
 export default {
     name: 'Home',
     data(){
         return {
             loading: false,
+
+            data: {
+                map: [],
+                round: 0,
+            },
+            manager: '',
+            cellname: '',
+            curCellIndex: -1,
+            cursorMode: 0, // [1:设置战旗|3:设置电墙|4:擦除]鼠标模式
+
+            username: '',
+            showLoginPop: false,
+
+            itv: null,
+
+            WI,HI,RNLIST,CNLIST,LBLIST,
             CONFIG,
             DEBUG,
         };
     },
     mounted(){
-
+        this.manager = localStorage.getItem(CACHE.m);
+        this.qload(data=>{
+            if(!data.map&&this.manager){ // 初始化
+                this.initData();
+            }
+            else{
+                this.data = data;
+                /*if(!this.manager){ // 玩家开启实时读取
+                    this.itv = setInterval(_=>{
+                        this.qload(data=>{
+                            if(data&&data.map){
+                                this.data = data;
+                            }
+                        });
+                    },3000);
+                }
+                else{ // DM开启实时上传
+                    this.itv = setInterval(_=>{
+                        this.qsave(data=>{
+                            if(data&&data.map){
+                                this.data = data;
+                            }
+                        });
+                    },3000);
+                }*/
+            }
+        });
+    },
+    beforeDestroy(){
+        if(this.itv){
+            clearInterval(this.itv);
+            this.itv = null;
+        }
     },
     methods: {
+        initData(){ // 初始化数据
+            let mapLength = WI*HI;
+            for(let i=0;i<mapLength+WI;i++){
+                this.data.map.push({
+                    roles: [],
+                    type: 0, // [1:战旗|2:陷阱卡牌|3:电墙]
+                    card: 0, // [1:攻|2:闪|3:蓄]
+                    show: false,
+                    name: '',
+                });
+            }
+            this.data.round = 1;
+            this.qsave();
+        },
+        qsave(callback){ // 覆盖存档
+            if(this.loading) return;
+            this.loading = this.$toast.loading();
+            query('http://yulintraining.com/common/api/save.php',rdata=>{
+                this.loading&&this.loading.hide();
+                this.loading = null;
+                this.$toast.text(`同步成功`,{duration:500});
+                callback&&callback();
+            },edata=>{
+                this.loading&&this.loading.hide();
+                this.loading = null;
+                this.$toast.text(edata.msg);
+            },1,{data:JSON.stringify(this.data)});
+        },
+        qload(callback){ // 读取存档
+            if(this.loading) return;
+            this.loading = this.$toast.loading();
+            query('http://yulintraining.com/common/api/load.php',rdata=>{
+                this.loading&&this.loading.hide();
+                this.loading = null;
+                this.$toast.text(`同步成功`,{duration:500});
+                callback&&callback(JSON.parse(rdata.data.json));
+            },edata=>{
+                this.loading&&this.loading.hide();
+                this.loading = null;
+                this.$toast.text(edata.msg);
+            },1,);
+        },
+        getCellCoords(){ // 格子坐标
+            let x = '', y = '';
+            let index = this.curCellIndex;
+            x = index%WI;
+            y = Math.floor(index/HI);
+            return `${LBLIST[y]}-${x+1}`;
+        },
+        moveRole(roleIndex,cellIndex){ // 移动一个角色
+            for(let i=0;i<this.data.map.length;i++){
+                let newRoles = [];
+                let cell = this.data.map[i];
+                for(let j=0;j<cell.roles.length;j++){
+                    if(cell.roles[j]!=roleIndex){
+                        newRoles.push(cell.roles[j]);
+                    }
+                }
+                this.data.map[i].roles = newRoles;
+            }
+            this.data.map[cellIndex].roles.push(roleIndex);
+        },
+        onUsernameChange(){
+            if(this.username==UN){
+                this.showLoginPop = false;
+                this.manager = UN;
+                localStorage.setItem(CACHE.m,UN);
+            }
+        },
 
+        onClickCell(index){ // 点击【格子】按钮
+            if(this.cursorMode>0){ // 有画笔
+                this.curCellIndex = index;
+                if(this.cursorMode==1||this.cursorMode==3){
+                    this.data.map[this.curCellIndex].type = this.cursorMode;
+                }
+                else if(this.cursorMode==4){
+                    this.data.map[this.curCellIndex].type = 0;
+                    this.data.map[this.curCellIndex].name = '';
+                }
+            }
+            else{ // 无画笔
+                if(this.curCellIndex!=index){
+                    this.curCellIndex = index;
+                }
+                else{
+                    this.curCellIndex = -1;
+                }
+            }
+        },
+        onClickSetName(){ // 点击【设置文字】按钮
+            this.data.map[this.curCellIndex].name = this.cellname;
+        },
+        onClickRoundCount(val){ // 点击【设置回合数量】按钮
+            this.data.round += val;
+            if(this.data.round<0||val==0){
+                this.data.round = 0;
+            }
+            /* if(val==1){
+                for(let i=WI-2;i>=0;i--){ // 遍历死亡区的 8 格
+                    let cell = this.data.map[i+WI*HI];
+                    let roles = cell.roles;
+                    for(let j=0;j<roles.length;j++){ // 遍历 1 格中的所有角色
+                        this.moveRole(roles[j],i+WI*HI+1);
+                    }
+                }
+            }*/
+        },
+        onClickMove(index){ // 点击【移动】按钮
+            this.moveRole(index,this.curCellIndex);
+        },
+        onClickSetType(type,card){ // 点击【设置格子类型】按钮
+            this.data.map[this.curCellIndex].type = type;
+            if(type==2){
+                this.data.map[this.curCellIndex].card = card;
+            }
+            if(type==0){
+                this.data.map[this.curCellIndex].name = '';
+            }
+        },
+        onClickSetShow(){ // 点击【设置显示状态】按钮
+            this.data.map[this.curCellIndex].show = !this.data.map[this.curCellIndex].show;
+        },
+        onClickSetCursor(mode){ // 点击【设置画笔】按钮
+            if(this.cursorMode!=mode){
+                this.cursorMode = mode;
+            }
+            else{
+                this.cursorMode = 0;
+            }
+        },
+        onClickSave(){ // 点击【同步上传】按钮
+            this.qsave();
+        },
+        onClickLoad(){ // 点击【同步读取】按钮
+            this.qload(data=>{
+                this.data = data;
+            });
+        },
+        onClickClear(){ // 点击【清场】按钮
+            let res = window.confirm('确定要清场吗？');
+            if(res){
+                let temp = JSON.stringify(this.data);
+                localStorage.setItem(CACHE.t,temp);
+                this.curCellIndex = -1;
+                this.cellname = '';
+                for(let i=0;i<this.data.map.length;i++){
+                    this.data.map[i] = {
+                        roles: [],
+                        type: 0,
+                        card: 0,
+                        show: false,
+                        name: '',
+                    }
+                }
+            }
+        },
+        onClickLogout(){ // 点击【注销】按钮
+            this.manager = '';
+            localStorage.removeItem(CACHE.m);
+        },
     },
     components:{
 
@@ -37,671 +376,379 @@ export default {
         color: #4a4a4a;
         font-size: .24rem;
     }
-    .orange{
-        color: #ff4f18;
+    .map{
+        width: 7.5rem;
+        height: 7.5rem;
+        margin-right: auto;
+        margin-left: auto;
+        margin-bottom: .2rem;
+        line-height: 0;
     }
-    .panel{
-        position: relative;
-        width: 100%;
-        height: calc( 100% - 1.2rem );
-    }
-    .clr{
-        clear: both;
-    }
-    .block{
-        height: 100%;
-        width: 100%;
-        overflow-x: hidden;
-        overflow-y: scroll;
-        padding-bottom: 1.5rem;
-    }
-    .pop{
-        background-color: #fff;
-        width: 3rem;
-    }
-    .pop-system-menu .menu-item,
-    .pop-system-menu .switch{
-        display: block;
-        width: 3rem;
-        height: .8rem;
-        line-height: .8rem;
-        font-size: .28rem;
-        white-space: nowrap;
-        word-break: keep-all;
-        text-align: center;
-    }
-    .pop-system-menu .switch{
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-    }
-    .pop-system-menu .switch label{
-
-    }
-    .tab-panel{
-        padding: 0 .12rem;
-    }
-    .tab-panel .row{
-        min-height: 1rem;
-        margin-bottom: .3rem;
-    }
-    .tab-panel .no-margin{
-        margin-bottom: 0;
-    }
-    .row .label,.row. .input{
-
-    }
-    .flex{
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-    }
-    .row .row-column{
-        width: 49%;
-        display: inline-block;
-    }
-    .row .label{
-        width: 2.5rem;
-        white-space: nowrap;
-        word-break: keep-all;
-        text-align: right;
-        padding-right: .1rem;
-    }
-    .row .input{
-        width: 4rem;
-    }
-    .row-tip,.tip{
-        font-size: .2rem;
-        line-height: .3rem;
-        margin: .14rem 0;
-        color: #777;
-    }
-    .row-tip p{
-        text-align: left;
-    }
-    .row-tip .btn{
-        margin-left: .1rem;
-        text-align: center;
-        white-space: nowrap;
-        word-break: keep-all;
-    }
-    .row-tip p::before{
-        content: '';
-        display: inline-block;
-        vertical-align: middle;
-        width: .08rem;
-        height: .08rem;
-        background-color: #ff4f18;
-        margin-right: .12rem;
+    .death{
+        width: 7.5rem;
+        height: .83333333rem;
+        margin-right: auto;
+        margin-left: auto;
+        line-height: 0;
+        margin-bottom: .2rem;
     }
     .btn{
-        color: #ff4f18;
-    }
-    .btn-icon{
-        display: inline-block;
-        color: #ff4f18;
+        cursor: pointer;
         text-align: center;
-        font-size: .33rem;
-        width: .26rem;
+        display: inline-block;
+        font-weight: bold;
     }
-    .btn-go{
-        color: #fff;
+    .btn:hover{
+        opacity: .75;
     }
-    .btn-go p,
-    .btn-go small{
-        word-break: keep-all;
-        white-space: nowrap;
-    }
-    .btn-small{
-        margin-left: .2rem;
-        font-size: .22rem;
-    }
-    .small{
-        font-size: .2rem;
-        font-weight: normal;
-    }
-    .touch-dom{
-        display: block;
-        padding-left: .2rem;
-        width: 1.2rem;
-        height: .8rem;
-        line-height: .4rem;
-        font-size: .24rem;
-        word-break: break-all;
-        color: #fff;
-        border-top-left-radius: .4rem;
-        border-bottom-left-radius: .4rem;
-        background: linear-gradient(315deg, #ff4f18 0%, #f20000 100%);
-        border: .02rem solid #fff;
-        border-right: 0;
-    }
-    .factory-name{
+    .cell{
         position: relative;
-        width: 100%;
-        height: 1.05rem;
-        line-height: 1.05rem;
-        text-align: left;
-        font-size: .5rem;
-    }
-    .factory-name >span{
-        display: block;
-        height: 1rem;
-        border-bottom: 1px solid #414141;
-    }
-    .btn-edit{
-        color: #ff4f18;
-        display: inline-block;
-        font-size: .2rem;
-    }
-    .my-name{
-        display: flex;
-        justify-content: flex-start;
-        align-items: center;
-        height: .46rem;
-        line-height: .46rem;
-        font-weight: normal;
-        text-align: left;
-    }
-    .my-name >b{
-        display: inline-block;
-        margin: 0 .04rem;
-    }
-    .room-name{
-        height: .9rem;
-        line-height: .9rem;
-        text-align: left;
-        border-bottom: 1px solid #414141;
-    }
-    .room-name >span{
-        font-weight: normal;
-        font-size: .28rem;
-    }
-    .tab-wrap{
-        position: absolute;
-        z-index: 999;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        width: 100%;
-        height: 1rem;
-        line-height: 1rem;
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
+        margin: 0;
+        line-height: 0;
         background-color: #fff;
-        /* border-top: .01rem solid #ff4f18; */
-        box-shadow: 0 0 .2rem .03rem grey;
+        box-shadow: 0 0 1px inset #000;
     }
-    .tab-wrap .btn{
-        width: 1.5rem;
-        font-size: .26rem;
-        white-space: nowrap;
-        word-break: keep-all;
+    .death .cell{
+        background-color: #333;
+        box-shadow: 0 0 1px inset #fff;
     }
-    .tab-wrap .btn-tab-ban{
-        background-color: #ccc;
-        color: #eaeaea;
+    .cell-sel{
+        box-shadow: 0 0 2px 2px inset orangeRed;
     }
-    .tab-wrap .active{
-        background: linear-gradient(315deg, #ff4f18 0%, #f20000 100%);
-        color: #fff;
+    .cell-blue{
+        background-color: #E1FFFF;
     }
-    .index{
-        text-align: left;
-        padding: .12rem 0;
-        margin-bottom: .18rem;
+    .cell-red{
+        background-color: #F0C0C0;
     }
-    .index::after{
-        content: '';
-        display: block;
-        width: 100%;
-        clear: both;
-    }
-    .index-cell{
-        height: .5rem;
-        line-height: .5rem;
-        font-size: .26rem;
-        display: inline-block;
-        width: 100%;
-        white-space: nowrap;
-        word-break: keep-all;
-    }
-    .index-cell-grey{
-        font-weight: normal;
-        color: #777;
-    }
-    .index-lg{
-        margin-top: 35px;
-    }
-    .pct-wrap b{
-        width: 35%;
-    }
-    .index .pct{
-        display: inline-block;
-        width: calc( 60% - .12rem );
-        margin-left: .12rem;
-    }
-    .index-cell b{
-        padding-left: .1rem;
-        border-left: .06rem solid #ff4f18;
-    }
-    .index-cell .lab-name{
-        display: inline-block;
-        width: 1rem;
-    }
-    .index .left{
-        float: left;
-        width: 50%;
-    }
-    .index .right{
-        float: right;
-        width: 50%;
-    }
-    .filter{
-        padding: .1rem 0;
-        margin: 0;
-        line-height: .5rem;
-    }
-    .filter .select,
-    .market .select{
-        font-weight: bold;
-        text-decoration: underline;
-    }
-    .filter .btn,
-    .market .btn{
-        display: inline-block;
-        width: 1.2rem;
-        font-size: .26rem;
-        text-align: left;
-    }
-    .market{
-        padding: 0;
-        margin: 0;
-        height: .6rem;
-        line-height: .6rem;
-    }
-    .market .btn{
-        width: 49%;
-        font-size: .3rem;
-    }
-    .market .select{
-        border-bottom: .01rem solid #ff4f18;
-        font-size: .3rem;
-    }
-    .footer{
-        position: absolute;
-        z-index: 999;
-        bottom: 0;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        height: 1.2rem;
-        width: 100%;
-        background: white;
-    }
-    .footer .fact{
-        padding: 0 .23rem;
-        width: 4.2rem;
-        text-align: center;
-        height: 1.2rem;
-        border-top: .01rem solid #ccc;
-    }
-    .footer .fact .fact-item{
-        width: 4.2rem;
-        height: .6rem;
-        line-height: .6rem;
-        text-align: left;
-        font-size: .34rem;
-    }
-    .footer .btn{
-        width: 3.3rem;
-        height: 1.2rem;
-        font-size: .32rem;
-    }
-    .gameover{
-        width: 100%;
-        height: 100%;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        font-size: 30px;
-        background-color: #aaa;
-        color: #fff;
-    }
-    /* 弹窗 */
-    .room-board{
-        width: 6.5rem;
-        padding: 0 .2rem;
-    }
-    .room-board .btn{
-        text-align: center;
-        font-size: .24rem;
-    }
-    .room-board .row{
-        padding: .3rem 0;
-        border-bottom: .01rem solid #ccc;
-    }
-    .room-board .level{
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-        height: 1.5rem;
-    }
-    .room-board .room-level{
-        padding-bottom: 0;
-    }
-    .room-board .room-level .btn{
-        font-weight: bold;
-        font-size: .3rem;
-    }
-    .room-board .room-level .main-level{
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-        height: 1rem;
-    }
-    .room-board .level .btn{
-        font-weight: bold;
-        font-size: .3rem;
-    }
-    .room-board .order-con{
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        float: left;
-        width: 2rem;
-        height: .4rem;
-        line-height: .4rem;
-    }
-    .counter{
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-        font-size: .3rem;
-        width: 1.2rem;
-    }
-    .counter .btn{
-        height: .4rem;
-        width: .4rem;
-        color: #a4a4a4;
-        border: .01rem solid #a4a4a4;
-    }
-    .counter .active{
-        color: #ff4f18;
-        border: .01rem solid #ff4f18;
-    }
-    .counter span{
-        display: inline-block;
-        width: .4rem;
-    }
-    .room-board .room-level .all-level{
-        text-align: left;
-        float: right;
-    }
-    .room-board .room-level .all-level .btn-small{
-        height: .4rem;
-        line-height: .4rem;
-        font-size: .22rem;
-        color: #ff4f18;
-        display: block;
-        margin-bottom: 10px;
-    }
-    .room-board .risk{
-        text-align: left;
-        min-height: 2rem;
-    }
-    .room-board .risk h3{
-        height: .6rem;
-        line-height: .6rem;
-    }
-    .room-board .risk .risk-side{
-        display: inline-block;
-        width: 49%;
-        padding: 0 4px;
-    }
-    .room-board .risk .risk-side-border{
-        border-right: 1px solid #ccc;
-    }
-    .room-board .risk .select{
-        color: #ff4f18;
-    }
-    .room-board .risk .risk-item{
-        display: inline-block;
-        margin-right: .2rem;
-    }
-    .room-board .sell{
-        color: #ff4f18;
-        font-size: .3rem;
-        font-weight: bold;
-        text-align: right;
-    }
-    .room-board .sell a{
-        display: inline-block;
-        margin: 0 6px;
-    }
-    .btn-group{
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-    }
-    .btn-group a{
-        width: 3rem;
-    }
-    .worker-board{
-        width: 5rem;
-        padding: 0 .2rem;
-        padding-bottom: .3rem;
-        text-align: left;
-    }
-    .worker-board .title{
-        min-height: .8rem;
-        line-height: .8rem;
-        margin-bottom: .2rem;
-        font-size: .3rem;
-        border-bottom: .01rem solid #ccc;
-    }
-    .worker-board .title span{
-        font-size: .2rem;
-        font-weight: normal;
-    }
-    .worker-board .item{
-        display: flex;
-        justify-content: flex-start;
-        align-items: center;
-    }
-    .worker-board .item h3{
-        width: 35%;
-        text-align: left;
-        height: .58rem;
-        line-height: .58rem;
-        white-space: nowrap;
-        word-break: keep-all;
-    }
-    .worker-board .item span{
-        width: 60%;
-        display: flex;
-        justify-content: flex-start;
-        align-items: center;
-        text-align: left;
-        white-space: nowrap;
-        word-break: keep-all;
-    }
-    .worker-board .item span b{
-        width: .65rem;
-    }
-    .worker-board .sell{
-        color: #ff4f18;
-        font-size: .3rem;
-        font-weight: bold;
-        justify-content: flex-end;
-    }
-    .worker-board .sell .risk-item{
-        height: .72rem;
-        line-height: .72rem;
-        margin-left: .24rem;
-    }
-    .pop-worker-list{
-        width: 7.2rem;
-        padding: .1rem;
-        height: 6.2rem;
-        overflow-y: scroll;
-        overflow-x: hidden;
-    }
-    .pop-room-list{
-        width: 7.2rem;
-        padding: .3rem;
-        height: 6.2rem;
-        overflow: scroll;
-    }
-    .pop-room-list h3{
-        width: 2.5rem;
-    }
-    .pop-room-list h3 >p{
-        white-space: nowrap;
-        word-break: keep-all;
-    }
-    .pop-room-list .level{
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        height: 1.5rem;
-    }
-    .log{
-        padding: .2rem;
-    }
-    .log .title{
-        text-align: left;
-        font-size: .26rem;
-    }
-    .log .sub-title{
-        font-size: .26rem;
-    }
-    .log-board{
-        width: 7rem;
-        height: 10rem;
-        max-height: 90%;
-        padding: .2rem;
-        text-align: left;
-        overflow-y: scroll;
-    }
-    .log-board .title{
-        font-size: .32rem;
-        border-bottom: .01rem solid #ccc;
-    }
-    .para{
-        font-size: .24rem;
-        line-height: .4rem;
-    }
-    .para .p1{
-        padding: .16rem 0;
-        border-bottom: .01rem solid #ccc;
-    }
-    /* 规则 */
-    .rule{
+    .cell .item{
         position: absolute;
         top: 0;
         right: 0;
+        bottom: 0;
+        left: 0;
         width: 100%;
         height: 100%;
-        z-index: 9999;
+        margin: auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+        flex-flow: wrap;
+        word-break: break-all;
+        z-index: 90;
+    }
+    .death .cell .item{
+        color: #888;
+        font-size: .24rem;
+    }
+    .cell .item .block{
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 90%;
+        height: 90%;
         color: #fff;
-        overflow-x: hidden;
-        overflow-y: scroll;
-        background-color: rgba(0,0,0,.7);
-        transition: all .2s;
+        font-size: .24rem;
+        background-color: #191970;
     }
-    .rule-hide{
-        top: 42px;
-        right: 22px;
-        width: 0;
-        height: 0;
+    .cell .item .flag{
+        color: #FFD700;
+        background-color: #111;
+        font-size: .3rem;
+        width: 75%;
+        height: .35rem;
+        line-height: .35rem;
+        text-align: center;
+        opacity: .7;
+        display: block;
+        box-shadow: 0 0 2px 1px #FFD700;
+        font-weight: bold;
     }
-    .rule-board{
+    .cell .item .building{
+        color: #222;
+        font-size: .18rem;
+    }
+    .block-building{
+        color: #fff !important;
+        width: 80%;
+        height: 80%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border: .02rem solid #fff;
+    }
+    .cell .item .card{
+        width: 50%;
+        height: 80%;
+        border-radius: 4px;
+        background-color: LightSlateGray;
+        border: 2px solid #ccc;
+        opacity: .7;
+        color: #fff;
+        font-size: .3rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    .cell .item .card-1{
+        background-color: red;
+    }
+    .cell .item .card-2{
+        background-color: green;
+    }
+    .cell .item .card-3{
+        background-color: blue;
+    }
+    .role-wrap{
+        height: 100%;
         width: 100%;
-        padding: .8rem .35rem;
+        top: 0;
+        left: 0;
+        right: 0;
+        position: absolute;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        flex-wrap: wrap;
+        z-index: 100;
     }
-    .rule-board .row,
-    .rule-board .sub-row{
+    .role{
+        width: .3rem;
+        height: .3rem;
+        border-radius: 50%;
+        border: 1px solid #fff;
+        font-size: .2rem;
+        display: flex;
+        color: #fff;
+        font-weight: normal;
+        justify-content: center;
+        align-items: center;
+        box-shadow: 2px 2px 3px 1px #555;
+    }
+    @keyframes roll {
+        to{
+            transform: rotateY(360deg);
+        }
+    }
+    .role-color-1{
+        background-color: #F08080;
+        animation: roll 1.5s ease-in-out infinite;
+    }
+    .role-color-2{
+        background-color: #228B22;
+        animation: roll 1.7s ease-in-out infinite;
+    }
+    .role-color-3{
+        background-color: #FFD700;
+        animation: roll 1.9s ease-in-out infinite;
+    }
+    .role-color-4{
+        background-color: #1E90FF;
+        animation: roll 2.1s ease-in-out infinite;
+    }
+    .role-color-5{
+        background-color: #778899;
+        animation: roll 2.3s ease-in-out infinite;
+    }
+    .role-color-6{
+        background-color: #9400D3;
+        animation: roll 2.5s ease-in-out infinite;
+    }
+    .role-color-7{
+        width: .4rem;
+        height: .4rem;
+        background-color: red;
+        box-shadow: 0 0 4px 3px #a44;
+        font-size: .28rem;
+        animation: sc .5s ease-in-out infinite alternate;
+    }
+    @keyframes sc {
+        to{
+            transform: scale(1.2);
+        }
+    }
+    .round,.coord{
+        font-weight: bold;
+        text-align: left;
+        padding: 0 .1rem;
+        font-size: .32rem;
+    }
+    .btn-login{
+        position: absolute;
+        margin: 0 auto;
+        left: 0;
+        right: 0;
+        width: 100%;
+        color: #fff;
+        height: 40px;
+        line-height: 40px;
+        background-color: orangeRed;
+        bottom: 0;
+        z-index: 1001;
+    }
+    .btn-asyn{
+        position: absolute;
+        right: .2rem;
+        top: 8.8rem;
+        width: .9rem;
+        height: .9rem;
+        line-height: .9rem;
+        border-radius: 50%;
+        font-size: .3rem;
+        background-color: #ff4f18;
+        color: #fff;
+    }
+
+    /* option */
+    .option{
+        background-color: #eee;
+        padding: .1rem;
+        width: 100%;
         text-align: left;
     }
-    .rule-board .row{
-        margin-bottom: .2rem;
-        padding: 0 .12rem;
-        padding-bottom: .2rem;
-        background-color: rgba(0,0,0,.5);
-    }
-    .heavy-shadow .row{
-        background-color: rgba(0,0,0,.75);
-    }
-    .rule-board .sub-row{
-        padding-left: .2rem;
-    }
-    .rule-board .row h3,
-    .rule-board .sub-row h3{
+    .option .row{
         height: .5rem;
         line-height: .5rem;
-        white-space: nowrap;
-        word-break: keep-all;
-        font-size: .26rem;
+        font-size: .3rem;
+        font-weight: bold;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
-    .rule-board .sub-row h3{
-        margin-top: .1rem;
+    .option .row-name{
+        width: 1.8rem;
+    }
+    .option .row .inp{
+        display: inline-block;
+        height: .4rem;
+        width: 2.5rem;
+        font-size: .26rem;
+        vertical-align: middle;
+    }
+    .option .row .btn{
+        display: inline-block;
+        min-width: .6rem;
         height: .4rem;
         line-height: .4rem;
-    }
-    .rule-board .row h3 >label{
-        padding-left: .12rem;
-        border-left: .06rem solid #ff4f18;
-    }
-    .rule-board .sub-row h3 label{
-        padding-left: .12rem;
-        border-left: none;
-    }
-    .rule-board .sub-row h3 label::before{
-        content: '';
-        display: inline-block;
-        vertical-align: middle;
-        width: .08rem;
-        height: .08rem;
-        background-color: #ff4f18;
-        margin-right: .12rem;
-    }
-    .rule-board .row p,
-    .rule-board .sub-row p{
+        padding: 0 .04rem;
         font-size: .26rem;
-        padding: 0 .2rem;
+        background-color: #ff4f18;
+        color: #fff;
     }
-    .rule-board .sub-row p{
-        padding-left: .32rem;
+    .option .row-title{
+        justify-content: space-between;
     }
-    .level-bar{
-        display: inline-block;
-        height: .2rem;
-        line-height: .2rem;
-        width: 1rem;
-        margin-right: .04rem;
+    .option .row-roles{
+        height: .75rem;
+        justify-content: flex-start;
     }
-    .level-bar-1{
-        background-color: #ccc;
+    .option .row-roles .btn-move{
+        width: .5rem;
+        height: .5rem;
+        line-height: .5rem;
+        border-radius: 50%;
+        margin-right: .2rem;
+        text-shadow: 2px 2px .02rem #222;
+        box-shadow: 2px 2px .02rem .02rem #222;
     }
-    .level-bar-2{
-        background-color: #5EC0FF;
+    .option .row-roles .btn-move-1{
+        background-color: #F08080;
     }
-    .level-bar-3{
-        background-color: #0E56FF;
+    .option .row-roles .btn-move-2{
+        background-color: #228B22;
     }
-    .level-text{
-        font-weight: bold;
+    .option .row-roles .btn-move-3{
+        background-color: #FFD700;
+    }
+    .option .row-roles .btn-move-4{
+        background-color: #1E90FF;
+    }
+    .option .row-roles .btn-move-5{
+        background-color: #778899;
+    }
+    .option .row-roles .btn-move-6{
+        background-color: #9400D3;
+    }
+    .option .btn-asyn{
+        position: static;
+        margin-top: .2rem;
+        width: 100%;
+        height: .6rem;
+        line-height: .6rem;
+        font-size: .3rem;
+        background-color: #ff4f18;
+        border-radius: 0;
+        color: #fff;
     }
 
-    .btn-lvlup{
-        display: inline-block;
-        margin-left: 10px;
-        font-weight: bold;
+    .lab{
+        position: absolute;
+        display: block;
+        height: 16px;
+        width: 16px;
+        line-height: 16px;
+        text-align: center;
+        color: #888;
+        font-size: 14px;
+        margin: auto;
+    }
+    .lab-t{
+        top: 0;
+        left: 0;
+        right: 0;
+    }
+    .lab-l{
+        top: 0;
+        bottom: 0;
+        left: 0;
+    }
+    .lab-b{
+        bottom: 0;
+        left: 0;
+        right: 0;
+    }
+    .lab-r{
+        top: 0;
+        bottom: 0;
+        right: 0;
     }
 
-    .factory-board{
-        width: 7rem;
-        padding: .2rem .1rem;
+    /* pc */
+    /* .pc .map{
+        width: 700px;
+        height: 700px;
+        margin-top: 10px;
+        margin-bottom: 10px;
+        border: 2px solid orangeRed;
     }
+    .pc .death{
+        width: 700px;
+        height: 83.33333333px;
+        border: 2px solid orangeRed;
+    }
+    .pc .death .cell .item,
+    .pc .cell .item .block,
+    .pc .cell .item .flag,
+    .pc .cell .item .building,
+    .pc .cell .item .card,
+    .pc .role,
+    .pc .role-color-7{
+        font-size: 18px;
+    }
+    .pc .cell .item .flag{
+        height: 32px;
+        line-height: 32px;
+    }
+    .pc .role{
+        width: 25px;
+        height: 25px;
+    }
+    .pc .role-color-7{
+        width: 35px;
+        height: 35px;
+    }
+    .pc .block-building{
+        border: 1px solid #fff;
+    } */
 </style>

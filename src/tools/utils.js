@@ -59,7 +59,52 @@ export function getParentNode(ele,tagname='a'){
     return false;
 }
 
+/* 通用ajax请求 */
+export function query(url,success,fail,type=0,data={}){
+    $.ajax({
+        url,
+        type: type?'POST':'GET',
+        data,
+        success: function(result){
+            if(result.code==0){
+                success&&success(result);
+            }
+            else{
+                console.error(result);
+                fail&&fail(result||{msg:'请求失败'});
+            }
+        },
+        error: function(e){
+            console.error(e);
+            fail&&fail(e);
+        },
+        complete: function(e){
+        },
+    });
+    return true;
+}
 
+export function getQueryVariable(variable){
+    let query = window.location.search.substring(1);
+    let vars = query.split('&');
+    for (let i=0;i<vars.length;i++) {
+           let pair = vars[i].split('=');
+           if(pair[0] == variable){
+               return pair[1];
+           }
+    }
+    return false;
+}
+
+export function arrContains(arr,number){ // 判断数字数组中是否含有数字
+    let res = -1;
+    Array.from(arr,(item,index)=>{
+        if(item==number){
+            res = index;
+        }
+    });
+    return res;
+}
 
 
 
