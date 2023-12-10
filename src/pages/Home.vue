@@ -126,6 +126,7 @@
         <nut-popup v-model="showLoginPop">
             <nut-textinput class="inp" v-model="username" @keyup="onUsernameChange" placeholder="主持人名字" :disabled="false"/>
         </nut-popup>
+
     </div>
 </template>
 
@@ -288,9 +289,11 @@ export default {
                     this.curCellIndex = -1;
                 }
             }
+            this.$forceUpdate();
         },
         onClickSetName(){ // 点击【设置文字】按钮
             this.data.map[this.curCellIndex].name = this.cellname;
+            this.$forceUpdate();
         },
         onClickRoundCount(val){ // 点击【设置回合数量】按钮
             this.data.round += val;
@@ -306,9 +309,11 @@ export default {
                     }
                 }
             }*/
+            this.$forceUpdate();
         },
         onClickMove(index){ // 点击【移动】按钮
             this.moveRole(index,this.curCellIndex);
+            this.$forceUpdate();
         },
         onClickSetType(type,card){ // 点击【设置格子类型】按钮
             this.data.map[this.curCellIndex].type = type;
@@ -318,9 +323,11 @@ export default {
             if(type==0){
                 this.data.map[this.curCellIndex].name = '';
             }
+            this.$forceUpdate();
         },
         onClickSetShow(){ // 点击【设置显示状态】按钮
             this.data.map[this.curCellIndex].show = !this.data.map[this.curCellIndex].show;
+            this.$forceUpdate();
         },
         onClickSetCursor(mode){ // 点击【设置画笔】按钮
             if(this.cursorMode!=mode){
@@ -329,6 +336,7 @@ export default {
             else{
                 this.cursorMode = 0;
             }
+            this.$forceUpdate();
         },
         onClickSave(){ // 点击【同步上传】按钮
             this.qsave();
@@ -339,26 +347,32 @@ export default {
             });
         },
         onClickClear(){ // 点击【清场】按钮
-            let res = window.confirm('确定要清场吗？');
-            if(res){
-                let temp = JSON.stringify(this.data);
-                localStorage.setItem(CACHE.t,temp);
-                this.curCellIndex = -1;
-                this.cellname = '';
-                for(let i=0;i<this.data.map.length;i++){
-                    this.data.map[i] = {
-                        roles: [],
-                        type: 0,
-                        card: 0,
-                        show: false,
-                        name: '',
+            let _this = this;
+            this.$dialog({
+                title: '确认清场？',
+                onOkBtn(e){
+                    let temp = JSON.stringify(_this.data);
+                    localStorage.setItem(CACHE.t,temp);
+                    _this.curCellIndex = -1;
+                    _this.cellname = '';
+                    for(let i=0;i<_this.data.map.length;i++){
+                        _this.data.map[i] = {
+                            roles: [],
+                            type: 0,
+                            card: 0,
+                            show: false,
+                            name: '',
+                        }
                     }
-                }
-            }
+                    this.close();
+                    _this.$forceUpdate();
+                },
+            });
         },
         onClickLogout(){ // 点击【注销】按钮
             this.manager = '';
             localStorage.removeItem(CACHE.m);
+            this.$forceUpdate();
         },
     },
     components:{
@@ -598,6 +612,18 @@ export default {
         font-size: .3rem;
         background-color: #ff4f18;
         color: #fff;
+    }
+
+    .confirm-wrap{
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        margin: auto;
+        width: 4rem;
+        height: 2rem;
+        background-color: #fff;
     }
 
     /* option */

@@ -3,6 +3,7 @@ module.exports = {
 	CACHE: {
 		t: 'tempdata',
 		m: 'manager',
+		f: 'flipmap',
 	},
 	CONFIG:{
 
